@@ -24,6 +24,7 @@ outputSteps = 1000
 def doRuns():
     successCDist = np.zeros(128, np.uint32)
     failureCDist = np.zeros(128, np.uint32)
+    maxTrials = 0
 
     runs = np.zeros(128, np.uint32)
 
@@ -31,6 +32,7 @@ def doRuns():
         success, trials = doSingleRun()
         runs = ensureSize(runs, trials)
         runs[1:trials+1] += 1
+        maxTrials = max(trials, maxTrials)
 
         if success:
             successCDist = ensureSize(successCDist, trials, successCDist[len(successCDist) - 1])
@@ -49,7 +51,7 @@ def doRuns():
 
             print("players: {}, successes at t={}: {}, failures: {}, " 
                   "in progress: {}, total runs: {}, runs per success: {}".
-                  format(players, index, successes, failures, inprogress, totalRuns, runsPerSuccess))
+                  format(players, maxTrials, successes, failures, inprogress, totalRuns, runsPerSuccess))
 
 
 def ensureSize(buffer, index, defaultValue=0):
@@ -95,4 +97,3 @@ def drop():
 
 
 doRuns()
-
