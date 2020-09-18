@@ -7,8 +7,11 @@
 # python rngsim_mod.py --prob 0.05 --num 21 --bail 67 --percentile 100 --trials 1000000 --keepgoing
 # p: 1000000, t=8227, suc: 503313 (50%), fail: 496687, ip: 0, total runs: 601052278, total runs per success: 1194.1918408624454, drops per success: 59.70799482628106, average runs per success: 973.845251364459, average runs per failure: 223.28609969658962
 
-import numpy as np
+# generate a distribution graph:
+# python rngsim_mod.py --prob 0.05 --num 21 --bail 67 --percentile 100 --trials 1000000 --distx 1407 --disty 200 --distyscale 0.2
 
+import numpy as np
+import cv2
 import argparse
 
 parser = argparse.ArgumentParser(description="rngsim_mod")
@@ -18,6 +21,9 @@ parser.add_argument("--num", dest="num", action="store", default="21")
 parser.add_argument("--bail", dest="bail", action="store", default="67")
 parser.add_argument("--percentile", dest="percentile", action="store", default="0.5")
 parser.add_argument("--keepgoing", dest="keepGoing", action="store_true", default=False)
+parser.add_argument("--distx", dest="distX", action="store", default="0")
+parser.add_argument("--disty", dest="distY", action="store", default="0")
+parser.add_argument("--distyscale", dest="distYScale", action="store", default="1.0")
 args = parser.parse_args()
 
 maxPlayers = int(args.trials)
@@ -26,6 +32,9 @@ successDrops = int(args.num)
 bailAfterFailures = int(args.bail)
 percentile = float(args.percentile)
 keepGoing = args.keepGoing
+distX = int(args.distX)
+distY = int(args.distY)
+distYScale = float(args.distYScale)
 
 outputSteps = 1000
 
@@ -35,6 +44,8 @@ def doRuns():
     successCDist = np.zeros(128, np.uint32)
     failureDist = np.zeros(128, np.uint32)
     failureCDist = np.zeros(128, np.uint32)
+    totalDist = np.zeros(128, np.uint32)
+    totalCDist = np.zeros(128, np.uint32)
     maxTrials = 0
     totalDropCount = 0
 
@@ -47,16 +58,12 @@ def doRuns():
         maxTrials = max(trials, maxTrials)
         totalDropCount += dropCount
 
+        totalDist, totalCDist = addResult(trials, totalDist, totalCDist)
+
         if success:
-            successCDist = ensureSize(successCDist, trials, successCDist[len(successCDist) - 1])
-            successCDist[trials:] += 1
-            successDist = ensureSize(successDist, trials, 0)
-            successDist[trials] += 1
+            successDist, successCDist = addResult(trials, successDist, successCDist)
         else:
-            failureCDist = ensureSize(failureCDist, trials, failureCDist[len(failureCDist) - 1])
-            failureCDist[trials:] += 1
-            failureDist = ensureSize(failureDist, trials, 0)
-            failureDist[trials] += 1
+            failureDist, failureCDist = addResult(trials, failureDist, failureCDist)
 
         if players % outputSteps == 0:
             index = np.searchsorted(successCDist, percentile * players)
@@ -75,6 +82,53 @@ def doRuns():
                   format(players, maxTrials, successes, (100 * (successes / players)), failures, inprogress,
                          totalRuns, totalRunsPerSuccess, dropsPerSuccess,
                          averageRunsPerSuccess, averageRunsPerFailure))
+
+            if distX > 0 and distY > 0:
+                showDist("dist", distX, distY, distYScale, [totalDist, failureDist], [(255, 0, 0), (0, 0, 255)],
+                         totalCDist, (0, 255, 0), 1, False)
+                cv2.waitKey(1)
+
+    if distX > 0 and distY > 0:
+        showDist("dist", distX, distY, distYScale, [totalDist, failureDist], [(255, 0, 0), (0, 0, 255)],
+                 totalCDist, (0, 255, 0), 1, True)
+        cv2.waitKey(1)
+
+
+def drawDist(sizeX, sizeY, max_dist, dist, color):
+    img = np.zeros((sizeY, sizeX, 3), np.uint8)
+    for x in range(0, len(dist)):
+        y = sizeY * (1 - (dist[x] / max_dist))
+        cv2.line(img, (x, sizeY), (x, int(round(y))), color, 1)
+    return img
+
+
+def showDist(title, sizeX, sizeY, scaleY, dists, colors, cdist, color_cdist, width_cdist, save):
+    max_dist = max([max(d) for d in dists]) * scaleY
+
+    imgs = [drawDist(sizeX, sizeY, max_dist, dists[n], colors[n]) for n in range(0, len(dists))]
+
+    img = imgs[0]
+    for n in range(1, len(imgs)):
+        img += imgs[n]
+
+    max_cdist = max(cdist)
+
+    for x in range(0, len(cdist) - 1):
+        y1 = sizeY * (1 - (cdist[x] / max_cdist))
+        y2 = sizeY * (1 - (cdist[x] / max_cdist))
+        cv2.line(img, (x, int(round(y1))), (x+1, int(round(y2))), color_cdist, width_cdist)
+
+    cv2.imshow(title, img)
+    if save:
+        cv2.imwrite('{}.png'.format(title), img)
+
+
+def addResult(result, dist, cdist):
+    cdist = ensureSize(cdist, result, cdist[len(cdist) - 1])
+    cdist[result:] += 1
+    dist = ensureSize(dist, result, 0)
+    dist[result] += 1
+    return dist, cdist
 
 
 def ensureSize(buffer, index, defaultValue=0):
