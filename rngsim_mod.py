@@ -73,15 +73,17 @@ def doRuns():
             failures = failureCDist[np.min([index+1, len(failureCDist) - 1])]
             averageRunsPerSuccess = sum([successDist[n]*n for n in range(len(successDist))]) / successes
             averageRunsPerFailure = sum([failureDist[n]*n for n in range(len(failureDist))]) / failures
+            averageRuns = sum([totalDist[n]*n for n in range(len(totalDist))]) / players
             totalRunsPerSuccess = totalRuns / successes
-            dropsPerSuccess = totalDropCount / successes
+            totalDropsPerSuccess = totalDropCount / successes
+
 
             print("p: {}, t={}, suc: {} ({:.00f}%), fail: {}, ip: {}, "
-                  "total runs: {}, total runs per success: {}, drops per success: {}, "
-                  "average runs per success: {}, average runs per failure: {}".
+                  "t: {}, trps: {}, tdps: {}, "
+                  "arps: {}, arpf: {}, ar: {}".
                   format(players, maxTrials, successes, (100 * (successes / players)), failures, inprogress,
-                         totalRuns, totalRunsPerSuccess, dropsPerSuccess,
-                         averageRunsPerSuccess, averageRunsPerFailure))
+                         totalRuns, totalRunsPerSuccess, totalDropsPerSuccess,
+                         averageRunsPerSuccess, averageRunsPerFailure, averageRuns))
 
             if distX > 0 and distY > 0:
                 showDist("dist", distX, distY, distYScale, [totalDist, failureDist], [(255, 0, 0), (0, 0, 255)],
